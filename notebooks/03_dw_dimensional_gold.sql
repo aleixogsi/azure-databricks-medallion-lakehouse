@@ -1,4 +1,28 @@
--- Modelo dimensional Gold unificado com histórico SCD Tipo 2 de beneficiários.
+-- DATABRICKS SOURCE
+-- COMMAND ----------
+
+%md
+# 03 - Modelagem Dimensional Conformada (Camada Gold)
+
+Este notebook implementa o modelo dimensional Star Schema da Camada Gold, unificando as entidades de negócio a partir da Camada Silver.
+
+> **Destaques de Arquitetura e Engenharia de Dados:**
+> - **SCD Tipo 2 (Slowly Changing Dimensions):** Modelagem de histórico temporal na `dim_beneficiario` utilizando hashing MD5/SHA2 (`atributos_hash`), controle de vigência (`valid_from`, `valid_to`) e flag de versão corrente (`is_current`).
+> - **Surrogate Keys Nativas:** Utilização de `BIGINT GENERATED ALWAYS AS IDENTITY` para geração automática de chaves substitutas.
+> - **Point-in-Time Joins:** Associação nas tabelas de fato (`fct_atendimento` e `fct_sinistro`) ligando os eventos à versão exata do beneficiário vigente na data da ocorrência.
+> - **Otimizações do Delta Lake:** Uso de `CLUSTER BY` (Liquid Clustering) / `Z-ORDER` e limpeza periódica de arquivos legados com `VACUUM`.
+
+-- COMMAND ----------
+
+%md
+## 1. Dimensão Beneficiário (`dim_beneficiario`) - SCD Tipo 2
+
+-- COMMAND ----------
+
+%md
+### 1.1. DDL da Tabela Dimensão Beneficiário
+
+-- COMMAND ----------
 
 CREATE TABLE IF NOT EXISTS catalog_dev.gold.dim_beneficiario (
   beneficiario_sk BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -25,6 +49,13 @@ TBLPROPERTIES (
 )
 COMMENT 'Dimensão conformada de beneficiários com histórico SCD Tipo 2';
 
+-- COMMAND ----------
+
+%md
+### 1.2. Temp View com Cálculo de Hash dos Atributos
+
+-- COMMAND ----------
+
 CREATE OR REPLACE TEMP VIEW beneficiario_changes AS
 SELECT
   id_beneficiario,
@@ -49,8 +80,13 @@ SELECT
   CAST(dt_processamento AS TIMESTAMP) AS change_timestamp
 FROM catalog_dev.siscad_silver.beneficiario;
 
--- A primeira etapa encerra as versões correntes alteradas.
--- A segunda etapa insere as novas versões.
+-- COMMAND ----------
+
+%md
+### 1.3. Carga SCD Tipo 2 - Etapa 1: Expiração das Versões Anteriores Alteradas
+
+-- COMMAND ----------
+
 MERGE INTO catalog_dev.gold.dim_beneficiario AS target
 USING beneficiario_changes AS source
 ON target.id_beneficiario = source.id_beneficiario
@@ -60,6 +96,13 @@ WHEN MATCHED AND target.atributos_hash <> source.atributos_hash THEN
     valid_to = source.change_timestamp,
     is_current = false,
     dt_processamento = current_timestamp();
+
+-- COMMAND ----------
+
+%md
+### 1.4. Carga SCD Tipo 2 - Etapa 2: Inserção das Novas Versões e Novos Registros
+
+-- COMMAND ----------
 
 INSERT INTO catalog_dev.gold.dim_beneficiario (
   id_beneficiario,
@@ -99,6 +142,28 @@ LEFT JOIN catalog_dev.gold.dim_beneficiario AS target
  AND target.atributos_hash = source.atributos_hash
 WHERE target.id_beneficiario IS NULL;
 
+-- COMMAND ----------
+
+%md
+### 1.5. Otimização de Armazenamento - Dimensão Beneficiário
+
+-- COMMAND ----------
+
+OPTIMIZE catalog_dev.gold.dim_beneficiario
+ZORDER BY (id_beneficiario, is_current);
+
+-- COMMAND ----------
+
+%md
+## 2. Dimensão Prestador (`dim_prestador`) - SCD Tipo 1 (Upsert)
+
+-- COMMAND ----------
+
+%md
+### 2.1. DDL da Tabela Dimensão Prestador
+
+-- COMMAND ----------
+
 CREATE TABLE IF NOT EXISTS catalog_dev.gold.dim_prestador (
   prestador_sk BIGINT GENERATED ALWAYS AS IDENTITY,
   id_prestador STRING NOT NULL,
@@ -113,6 +178,13 @@ CREATE TABLE IF NOT EXISTS catalog_dev.gold.dim_prestador (
 USING DELTA
 CLUSTER BY (id_prestador, especialidade)
 COMMENT 'Dimensão conformada da rede credenciada';
+
+-- COMMAND ----------
+
+%md
+### 2.2. Upsert (MERGE) na Dimensão Prestador
+
+-- COMMAND ----------
 
 MERGE INTO catalog_dev.gold.dim_prestador AS target
 USING catalog_dev.sisrede_silver.prestador AS source
@@ -134,6 +206,28 @@ WHEN NOT MATCHED THEN INSERT (
   current_timestamp()
 );
 
+-- COMMAND ----------
+
+%md
+### 2.3. Otimização de Armazenamento - Dimensão Prestador
+
+-- COMMAND ----------
+
+OPTIMIZE catalog_dev.gold.dim_prestador
+ZORDER BY (id_prestador, especialidade);
+
+-- COMMAND ----------
+
+%md
+## 3. Tabela Fato de Atendimentos (`fct_atendimento`)
+
+-- COMMAND ----------
+
+%md
+### 3.1. DDL da Tabela Fato de Atendimentos
+
+-- COMMAND ----------
+
 CREATE TABLE IF NOT EXISTS catalog_dev.gold.fct_atendimento (
   atendimento_sk BIGINT GENERATED ALWAYS AS IDENTITY,
   beneficiario_sk BIGINT,
@@ -149,8 +243,13 @@ USING DELTA
 CLUSTER BY (data_atendimento, beneficiario_sk)
 COMMENT 'Fato de eventos assistenciais na granularidade da guia';
 
--- Ao carregar o fato, associe cada atendimento às versões das dimensões
--- vigentes na data do evento.
+-- COMMAND ----------
+
+%md
+### 3.2. Carga do Fato com Lookup Temporal (Point-in-Time Join)
+
+-- COMMAND ----------
+
 INSERT INTO catalog_dev.gold.fct_atendimento (
   beneficiario_sk, num_guia, prestador_sk, data_atendimento, valor,
   tipo_atendimento, status, dt_processamento
@@ -172,11 +271,27 @@ LEFT JOIN catalog_dev.gold.dim_beneficiario AS beneficiario
 LEFT JOIN catalog_dev.gold.dim_prestador AS prestador
   ON atendimento.id_prestador = prestador.id_prestador;
 
-OPTIMIZE catalog_dev.gold.dim_beneficiario
-ZORDER BY (id_beneficiario, is_current);
+-- COMMAND ----------
+
+%md
+### 3.3. Otimização de Armazenamento - Fato Atendimento
+
+-- COMMAND ----------
 
 OPTIMIZE catalog_dev.gold.fct_atendimento
 ZORDER BY (data_atendimento, beneficiario_sk);
+
+-- COMMAND ----------
+
+%md
+## 4. Tabela Fato de Sinistros (`fct_sinistro`)
+
+-- COMMAND ----------
+
+%md
+### 4.1. DDL da Tabela Fato de Sinistros
+
+-- COMMAND ----------
 
 CREATE TABLE IF NOT EXISTS catalog_dev.gold.fct_sinistro (
   sinistro_sk BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -192,6 +307,13 @@ CREATE TABLE IF NOT EXISTS catalog_dev.gold.fct_sinistro (
 USING DELTA
 CLUSTER BY (data_sinistro, beneficiario_sk)
 COMMENT 'Fato de despesas assistenciais na granularidade do sinistro';
+
+-- COMMAND ----------
+
+%md
+### 4.2. Carga do Fato com Lookup Temporal (Point-in-Time Join)
+
+-- COMMAND ----------
 
 INSERT INTO catalog_dev.gold.fct_sinistro (
   beneficiario_sk, prestador_sk, id_sinistro, data_sinistro,
@@ -214,14 +336,25 @@ LEFT JOIN catalog_dev.gold.dim_beneficiario AS beneficiario
 LEFT JOIN catalog_dev.gold.dim_prestador AS prestador
   ON sinistro.id_prestador = prestador.id_prestador;
 
-OPTIMIZE catalog_dev.gold.dim_prestador
-ZORDER BY (id_prestador, especialidade);
+-- COMMAND ----------
+
+%md
+### 4.3. Otimização de Armazenamento - Fato Sinistro
+
+-- COMMAND ----------
 
 OPTIMIZE catalog_dev.gold.fct_sinistro
 ZORDER BY (data_sinistro, beneficiario_sk);
 
--- Execute somente após validar a política de retenção, os consumidores dependentes
--- e a necessidade de consultar versões anteriores dos dados.
+-- COMMAND ----------
+
+%md
+## 5. Manutenção e Retenção de Dados (VACUUM)
+
+> **Nota:** Execute os comandos abaixo apenas após validar a política de retenção, consumidores dependentes e a necessidade de time-travel.
+
+-- COMMAND ----------
+
 VACUUM catalog_dev.gold.dim_beneficiario RETAIN 168 HOURS;
 VACUUM catalog_dev.gold.dim_prestador RETAIN 168 HOURS;
 VACUUM catalog_dev.gold.fct_atendimento RETAIN 168 HOURS;
