@@ -1,5 +1,23 @@
--- Bronze: ingestão auditável dos quatro arquivos CSV de Saúde em Delta.
--- Publique a pasta data/ na landing zone e informe o caminho em ${landing_path}.
+-- DATABRICKS SOURCE
+-- COMMAND ----------
+
+%md
+# 01 - Ingestão Auditável da Camada Bronze
+
+Este notebook realiza a ingestão dos arquivos CSV originários dos sistemas transacionais de Saúde na **Camada Bronze**.
+
+> **Diretrizes de Qualidade da Camada Bronze:**
+> - Preservação dos dados no formato original (tipagem como `STRING` para evitar perda de dados por Schema Mismatch).
+> - Adição de metadados de controle e rastreabilidade (`dt_ingestao`, `source_file`, `source_system`, `ingestion_run_id`).
+> - Suporte a dados corrompidos ou fora de padrão usando a coluna `_rescued_data`.
+> - Utilização do comando **`COPY INTO`** para garantir cargas incrementais e **idempotentes**.
+
+-- COMMAND ----------
+
+%md
+## 1. Sistema SISCAD - Tabela de Beneficiários
+
+-- COMMAND ----------
 
 CREATE TABLE IF NOT EXISTS catalog_dev.siscad_bronze.beneficiario (
   id_beneficiario STRING,
@@ -24,6 +42,8 @@ TBLPROPERTIES (
 )
 COMMENT 'Cadastro de beneficiários do SISCAD, preservado para auditoria';
 
+-- COMMAND ----------
+
 -- COPY INTO é idempotente para cargas por arquivo: arquivos já registrados não são
 -- processados novamente. O identificador da execução permite rastrear cada lote.
 COPY INTO catalog_dev.siscad_bronze.beneficiario
@@ -36,6 +56,13 @@ FROM (
 )
 FILEFORMAT = CSV
 FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' = '_rescued_data');
+
+-- COMMAND ----------
+
+%md
+## 2. Sistema SISREDE - Tabela de Prestadores
+
+-- COMMAND ----------
 
 CREATE TABLE IF NOT EXISTS catalog_dev.sisrede_bronze.prestador (
   id_prestador STRING,
@@ -52,8 +79,13 @@ CREATE TABLE IF NOT EXISTS catalog_dev.sisrede_bronze.prestador (
   _rescued_data STRING
 )
 USING DELTA
-TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'quality' = 'bronze')
+TBLPROPERTIES (
+  'delta.enableChangeDataFeed' = 'true',
+  'quality' = 'bronze'
+)
 COMMENT 'Rede credenciada do SISREDE, preservada para auditoria';
+
+-- COMMAND ----------
 
 COPY INTO catalog_dev.sisrede_bronze.prestador
 FROM (
@@ -65,6 +97,13 @@ FROM (
 )
 FILEFORMAT = CSV
 FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' = '_rescued_data');
+
+-- COMMAND ----------
+
+%md
+## 3. Sistema SISGUIAS - Tabela de Atendimentos
+
+-- COMMAND ----------
 
 CREATE TABLE IF NOT EXISTS catalog_dev.sisguias_bronze.atendimento (
   id_atendimento STRING,
@@ -82,8 +121,13 @@ CREATE TABLE IF NOT EXISTS catalog_dev.sisguias_bronze.atendimento (
   _rescued_data STRING
 )
 USING DELTA
-TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'quality' = 'bronze')
+TBLPROPERTIES (
+  'delta.enableChangeDataFeed' = 'true',
+  'quality' = 'bronze'
+)
 COMMENT 'Atendimentos do SISGUIAS, preservados para auditoria';
+
+-- COMMAND ----------
 
 COPY INTO catalog_dev.sisguias_bronze.atendimento
 FROM (
@@ -95,6 +139,13 @@ FROM (
 )
 FILEFORMAT = CSV
 FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' = '_rescued_data');
+
+-- COMMAND ----------
+
+%md
+## 4. Sistema SISGUIAS - Tabela de Sinistros
+
+-- COMMAND ----------
 
 CREATE TABLE IF NOT EXISTS catalog_dev.sisguias_bronze.sinistro (
   id_sinistro STRING,
@@ -111,8 +162,13 @@ CREATE TABLE IF NOT EXISTS catalog_dev.sisguias_bronze.sinistro (
   _rescued_data STRING
 )
 USING DELTA
-TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'quality' = 'bronze')
+TBLPROPERTIES (
+  'delta.enableChangeDataFeed' = 'true',
+  'quality' = 'bronze'
+)
 COMMENT 'Sinistros do SISGUIAS, preservados para auditoria';
+
+-- COMMAND ----------
 
 COPY INTO catalog_dev.sisguias_bronze.sinistro
 FROM (
@@ -124,5 +180,12 @@ FROM (
 )
 FILEFORMAT = CSV
 FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' = '_rescued_data');
+
+-- COMMAND ----------
+
+%md
+## 5. Auditoria da Ingestão
+
+-- COMMAND ----------
 
 DESCRIBE HISTORY catalog_dev.siscad_bronze.beneficiario;
