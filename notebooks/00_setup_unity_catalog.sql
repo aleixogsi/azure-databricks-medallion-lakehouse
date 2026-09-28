@@ -1,4 +1,4 @@
--- DATABRICKS SOURCE
+-- Databricks notebook source
 -- COMMAND ----------
 
 %md
