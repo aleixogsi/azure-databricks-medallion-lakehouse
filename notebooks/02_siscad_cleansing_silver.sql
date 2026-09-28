@@ -1,4 +1,29 @@
--- Silver do SISCAD: tipagem, padronização e deduplicação determinística.
+-- DATABRICKS SOURCE
+-- COMMAND ----------
+
+%md
+# 02 - Processamento, Limpeza e Sanitização (Camada Silver)
+
+Este notebook realiza as transformações de negócio, sanitização de tipos, tratamento de valores nulos/corrompidos e deduplicação determinística dos dados oriundos da Camada Bronze.
+
+> **Objetivos da Camada Silver:**
+> - **Padronização e Casing:** Uso de `INITCAP`, `UPPER` e `TRIM` para higienização de strings.
+> - **Casting Seguro:** Conversão de tipos de dados usando funções seguras como `TRY_TO_DATE` e `TRY_CAST`.
+> - **Deduplicação Determinística:** Aplicação de janelas analíticas (`ROW_NUMBER() OVER (...)`) por chave primária de negócio.
+> - **Estratégias de Carga:** Uso de `MERGE INTO` (Upsert/SCD1) para cadastros e reconstrução de tabelas para fatos.
+> - **Otimização de Armazenamento:** Aplicação de `OPTIMIZE` e `Z-ORDER` para aceleração de consultas operacionais.
+
+-- COMMAND ----------
+
+%md
+## 1. Sistema SISCAD - Processamento de Beneficiários
+
+-- COMMAND ----------
+
+%md
+### 1.1. Temp View com Deduplicação via Window Function
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TEMP VIEW beneficiario_ranked AS
 SELECT
@@ -26,6 +51,13 @@ WHERE _rescued_data IS NULL
   AND TRIM(id_beneficiario) <> ''
   AND TRY_TO_DATE(data_nascimento, 'yyyy-MM-dd') IS NOT NULL;
 
+-- COMMAND ----------
+
+%md
+### 1.2. DDL da Tabela Silver de Beneficiários
+
+-- COMMAND ----------
+
 CREATE TABLE IF NOT EXISTS catalog_dev.siscad_silver.beneficiario (
   id_beneficiario STRING,
   nome STRING,
@@ -46,6 +78,13 @@ TBLPROPERTIES (
   'quality' = 'silver'
 )
 COMMENT 'Beneficiários do SISCAD padronizados, validados e deduplicados';
+
+-- COMMAND ----------
+
+%md
+### 1.3. Carga Incremental via MERGE (Upsert)
+
+-- COMMAND ----------
 
 MERGE INTO catalog_dev.siscad_silver.beneficiario AS target
 USING (
@@ -69,13 +108,28 @@ ON target.id_beneficiario = source.id_beneficiario
 WHEN MATCHED THEN UPDATE SET *
 WHEN NOT MATCHED THEN INSERT *;
 
--- Verificação básica de qualidade para a carga processada.
+-- COMMAND ----------
+
+%md
+### 1.4. Data Quality Check e Otimização Z-ORDER
+
+-- COMMAND ----------
+
 SELECT COUNT(*) AS invalid_keys
 FROM catalog_dev.siscad_silver.beneficiario
 WHERE id_beneficiario IS NULL;
 
+-- COMMAND ----------
+
 OPTIMIZE catalog_dev.siscad_silver.beneficiario
 ZORDER BY (id_beneficiario, plano);
+
+-- COMMAND ----------
+
+%md
+## 2. Sistema SISREDE - Processamento da Rede Credenciada (Prestadores)
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TEMP VIEW prestador_ranked AS
 SELECT
@@ -89,16 +143,33 @@ SELECT
   dt_ingestao,
   source_file,
   ingestion_run_id,
-  ROW_NUMBER() OVER (PARTITION BY TRIM(id_prestador) ORDER BY dt_ingestao DESC, source_file DESC) AS row_number
+  ROW_NUMBER() OVER (
+    PARTITION BY TRIM(id_prestador) 
+    ORDER BY dt_ingestao DESC, source_file DESC
+  ) AS row_number
 FROM catalog_dev.sisrede_bronze.prestador
 WHERE _rescued_data IS NULL
   AND id_prestador IS NOT NULL
   AND TRIM(id_prestador) <> '';
 
+-- COMMAND ----------
+
 CREATE OR REPLACE TABLE catalog_dev.sisrede_silver.prestador AS
 SELECT * EXCEPT (row_number)
 FROM prestador_ranked
 WHERE row_number = 1;
+
+-- COMMAND ----------
+
+OPTIMIZE catalog_dev.sisrede_silver.prestador 
+ZORDER BY (id_prestador, especialidade);
+
+-- COMMAND ----------
+
+%md
+## 3. Sistema SISGUIAS - Processamento de Atendimentos
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE catalog_dev.sisguias_silver.atendimento AS
 SELECT
@@ -118,6 +189,18 @@ WHERE _rescued_data IS NULL
   AND id_atendimento IS NOT NULL
   AND TRIM(id_atendimento) <> '';
 
+-- COMMAND ----------
+
+OPTIMIZE catalog_dev.sisguias_silver.atendimento 
+ZORDER BY (data_atendimento, id_beneficiario);
+
+-- COMMAND ----------
+
+%md
+## 4. Sistema SISGUIAS - Processamento de Sinistros
+
+-- COMMAND ----------
+
 CREATE OR REPLACE TABLE catalog_dev.sisguias_silver.sinistro AS
 SELECT
   TRIM(id_sinistro) AS id_sinistro,
@@ -135,6 +218,7 @@ WHERE _rescued_data IS NULL
   AND id_sinistro IS NOT NULL
   AND TRIM(id_sinistro) <> '';
 
-OPTIMIZE catalog_dev.sisrede_silver.prestador ZORDER BY (id_prestador, especialidade);
-OPTIMIZE catalog_dev.sisguias_silver.atendimento ZORDER BY (data_atendimento, id_beneficiario);
-OPTIMIZE catalog_dev.sisguias_silver.sinistro ZORDER BY (data_sinistro, id_beneficiario);
+-- COMMAND ----------
+
+OPTIMIZE catalog_dev.sisguias_silver.sinistro 
+ZORDER BY (data_sinistro, id_beneficiario);
