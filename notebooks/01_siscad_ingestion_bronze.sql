@@ -1,21 +1,21 @@
 -- Databricks notebook source
 -- COMMAND ----------
 
-%md
-# 01 - Ingestão Auditável da Camada Bronze
-
-Este notebook realiza a ingestão dos arquivos CSV originários dos sistemas transacionais de Saúde na **Camada Bronze**.
-
-> **Diretrizes de Qualidade da Camada Bronze:**
-> - Preservação dos dados no formato original (tipagem como `STRING` para evitar perda de dados por Schema Mismatch).
-> - Adição de metadados de controle e rastreabilidade (`dt_ingestao`, `source_file`, `source_system`, `ingestion_run_id`).
-> - Suporte a dados corrompidos ou fora de padrão usando a coluna `_rescued_data`.
-> - Utilização do comando **`COPY INTO`** para garantir cargas incrementais e **idempotentes**.
+-- MAGIC %md
+-- MAGIC # 01 - Ingestão Auditável da Camada Bronze
+-- MAGIC
+-- MAGIC Este notebook realiza a ingestão dos arquivos CSV originários dos sistemas transacionais de Saúde na **Camada Bronze**.
+-- MAGIC
+-- MAGIC > **Diretrizes de Qualidade da Camada Bronze:**
+-- MAGIC > - Preservação dos dados no formato original (tipagem como `STRING` para evitar perda de dados por Schema Mismatch).
+-- MAGIC > - Adição de metadados de controle e rastreabilidade (`dt_ingestao`, `source_file`, `source_system`, `ingestion_run_id`).
+-- MAGIC > - Suporte a dados corrompidos ou fora de padrão usando a coluna `_rescued_data`.
+-- MAGIC > - Utilização do comando **`COPY INTO`** para garantir cargas incrementais e **idempotentes**.
 
 -- COMMAND ----------
 
-%md
-## 1. Sistema SISCAD - Tabela de Beneficiários
+-- MAGIC %md
+-- MAGIC ## 1. Sistema SISCAD - Tabela de Beneficiários
 
 -- COMMAND ----------
 
@@ -44,8 +44,6 @@ COMMENT 'Cadastro de beneficiários do SISCAD, preservado para auditoria';
 
 -- COMMAND ----------
 
--- COPY INTO é idempotente para cargas por arquivo: arquivos já registrados não são
--- processados novamente. O identificador da execução permite rastrear cada lote.
 COPY INTO catalog_dev.siscad_bronze.beneficiario
 FROM (
   SELECT
@@ -59,8 +57,8 @@ FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' 
 
 -- COMMAND ----------
 
-%md
-## 2. Sistema SISREDE - Tabela de Prestadores
+-- MAGIC %md
+-- MAGIC ## 2. Sistema SISREDE - Tabela de Prestadores
 
 -- COMMAND ----------
 
@@ -100,8 +98,8 @@ FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' 
 
 -- COMMAND ----------
 
-%md
-## 3. Sistema SISGUIAS - Tabela de Atendimentos
+-- MAGIC %md
+-- MAGIC ## 3. Sistema SISGUIAS - Tabela de Atendimentos
 
 -- COMMAND ----------
 
@@ -142,8 +140,8 @@ FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' 
 
 -- COMMAND ----------
 
-%md
-## 4. Sistema SISGUIAS - Tabela de Sinistros
+-- MAGIC %md
+-- MAGIC ## 4. Sistema SISGUIAS - Tabela de Sinistros
 
 -- COMMAND ----------
 
@@ -183,8 +181,8 @@ FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'false', 'rescuedDataColumn' 
 
 -- COMMAND ----------
 
-%md
-## 5. Auditoria da Ingestão
+-- MAGIC %md
+-- MAGIC ## 5. Auditoria da Ingestão
 
 -- COMMAND ----------
 
