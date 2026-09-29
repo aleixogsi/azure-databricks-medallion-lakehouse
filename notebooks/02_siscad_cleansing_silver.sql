@@ -1,27 +1,27 @@
 -- Databricks notebook source
 -- COMMAND ----------
 
-%md
-# 02 - Processamento, Limpeza e Sanitização (Camada Silver)
-
-Este notebook realiza as transformações de negócio, sanitização de tipos, tratamento de valores nulos/corrompidos e deduplicação determinística dos dados oriundos da Camada Bronze.
-
-> **Objetivos da Camada Silver:**
-> - **Padronização e Casing:** Uso de `INITCAP`, `UPPER` e `TRIM` para higienização de strings.
-> - **Casting Seguro:** Conversão de tipos de dados usando funções seguras como `TRY_TO_DATE` e `TRY_CAST`.
-> - **Deduplicação Determinística:** Aplicação de janelas analíticas (`ROW_NUMBER() OVER (...)`) por chave primária de negócio.
-> - **Estratégias de Carga:** Uso de `MERGE INTO` (Upsert/SCD1) para cadastros e reconstrução de tabelas para fatos.
-> - **Otimização de Armazenamento:** Aplicação de `OPTIMIZE` e `Z-ORDER` para aceleração de consultas operacionais.
-
--- COMMAND ----------
-
-%md
-## 1. Sistema SISCAD - Processamento de Beneficiários
+-- MAGIC %md
+-- MAGIC # 02 - Processamento, Limpeza e Sanitização (Camada Silver)
+-- MAGIC
+-- MAGIC Este notebook realiza as transformações de negócio, sanitização de tipos, tratamento de valores nulos/corrompidos e deduplicação determinística dos dados oriundos da Camada Bronze.
+-- MAGIC
+-- MAGIC > **Objetivos da Camada Silver:**
+-- MAGIC > - **Padronização e Casing:** Uso de `INITCAP`, `UPPER` e `TRIM` para higienização de strings.
+-- MAGIC > - **Casting Seguro:** Conversão de tipos de dados usando funções seguras como `TRY_TO_DATE` e `TRY_CAST`.
+-- MAGIC > - **Deduplicação Determinística:** Aplicação de janelas analíticas (`ROW_NUMBER() OVER (...)`) por chave primária de negócio.
+-- MAGIC > - **Estratégias de Carga:** Uso de `MERGE INTO` (Upsert/SCD1) para cadastros e reconstrução de tabelas para fatos.
+-- MAGIC > - **Otimização de Armazenamento:** Aplicação de `OPTIMIZE` e `Z-ORDER` para aceleração de consultas operacionais.
 
 -- COMMAND ----------
 
-%md
-### 1.1. Temp View com Deduplicação via Window Function
+-- MAGIC %md
+-- MAGIC ## 1. Sistema SISCAD - Processamento de Beneficiários
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### 1.1. Temp View com Deduplicação via Window Function
 
 -- COMMAND ----------
 
@@ -53,8 +53,8 @@ WHERE _rescued_data IS NULL
 
 -- COMMAND ----------
 
-%md
-### 1.2. DDL da Tabela Silver de Beneficiários
+-- MAGIC %md
+-- MAGIC ### 1.2. DDL da Tabela Silver de Beneficiários
 
 -- COMMAND ----------
 
@@ -81,8 +81,8 @@ COMMENT 'Beneficiários do SISCAD padronizados, validados e deduplicados';
 
 -- COMMAND ----------
 
-%md
-### 1.3. Carga Incremental via MERGE (Upsert)
+-- MAGIC %md
+-- MAGIC ### 1.3. Carga Incremental via MERGE (Upsert)
 
 -- COMMAND ----------
 
@@ -110,8 +110,8 @@ WHEN NOT MATCHED THEN INSERT *;
 
 -- COMMAND ----------
 
-%md
-### 1.4. Data Quality Check e Otimização Z-ORDER
+-- MAGIC %md
+-- MAGIC ### 1.4. Data Quality Check e Otimização Z-ORDER
 
 -- COMMAND ----------
 
@@ -126,8 +126,8 @@ ZORDER BY (id_beneficiario, plano);
 
 -- COMMAND ----------
 
-%md
-## 2. Sistema SISREDE - Processamento da Rede Credenciada (Prestadores)
+-- MAGIC %md
+-- MAGIC ## 2. Sistema SISREDE - Processamento da Rede Credenciada (Prestadores)
 
 -- COMMAND ----------
 
@@ -166,8 +166,8 @@ ZORDER BY (id_prestador, especialidade);
 
 -- COMMAND ----------
 
-%md
-## 3. Sistema SISGUIAS - Processamento de Atendimentos
+-- MAGIC %md
+-- MAGIC ## 3. Sistema SISGUIAS - Processamento de Atendimentos
 
 -- COMMAND ----------
 
@@ -196,8 +196,8 @@ ZORDER BY (data_atendimento, id_beneficiario);
 
 -- COMMAND ----------
 
-%md
-## 4. Sistema SISGUIAS - Processamento de Sinistros
+-- MAGIC %md
+-- MAGIC ## 4. Sistema SISGUIAS - Processamento de Sinistros
 
 -- COMMAND ----------
 
