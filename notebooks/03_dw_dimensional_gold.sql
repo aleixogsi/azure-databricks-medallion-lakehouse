@@ -1,26 +1,26 @@
 -- Databricks notebook source
 -- COMMAND ----------
 
-%md
-# 03 - Modelagem Dimensional Conformada (Camada Gold)
-
-Este notebook implementa o modelo dimensional Star Schema da Camada Gold, unificando as entidades de negócio a partir da Camada Silver.
-
-> **Destaques de Arquitetura e Engenharia de Dados:**
-> - **SCD Tipo 2 (Slowly Changing Dimensions):** Modelagem de histórico temporal na `dim_beneficiario` utilizando hashing MD5/SHA2 (`atributos_hash`), controle de vigência (`valid_from`, `valid_to`) e flag de versão corrente (`is_current`).
-> - **Surrogate Keys Nativas:** Utilização de `BIGINT GENERATED ALWAYS AS IDENTITY` para geração automática de chaves substitutas.
-> - **Point-in-Time Joins:** Associação nas tabelas de fato (`fct_atendimento` e `fct_sinistro`) ligando os eventos à versão exata do beneficiário vigente na data da ocorrência.
-> - **Otimizações do Delta Lake:** Uso de `CLUSTER BY` (Liquid Clustering) / `Z-ORDER` e limpeza periódica de arquivos legados com `VACUUM`.
-
--- COMMAND ----------
-
-%md
-## 1. Dimensão Beneficiário (`dim_beneficiario`) - SCD Tipo 2
+-- MAGIC %md
+-- MAGIC # 03 - Modelagem Dimensional Conformada (Camada Gold)
+-- MAGIC
+-- MAGIC Este notebook implementa o modelo dimensional Star Schema da Camada Gold, unificando as entidades de negócio a partir da Camada Silver.
+-- MAGIC
+-- MAGIC > **Destaques de Arquitetura e Engenharia de Dados:**
+-- MAGIC > - **SCD Tipo 2 (Slowly Changing Dimensions):** Modelagem de histórico temporal na `dim_beneficiario` utilizando hashing MD5/SHA2 (`atributos_hash`), controle de vigência (`valid_from`, `valid_to`) e flag de versão corrente (`is_current`).
+-- MAGIC > - **Surrogate Keys Nativas:** Utilização de `BIGINT GENERATED ALWAYS AS IDENTITY` para geração automática de chaves substitutas.
+-- MAGIC > - **Point-in-Time Joins:** Associação nas tabelas de fato (`fct_atendimento` e `fct_sinistro`) ligando os eventos à versão exata do beneficiário vigente na data da ocorrência.
+-- MAGIC > - **Otimizações do Delta Lake:** Uso de `CLUSTER BY` (Liquid Clustering) / `Z-ORDER` e limpeza periódica de arquivos legados com `VACUUM`.
 
 -- COMMAND ----------
 
-%md
-### 1.1. DDL da Tabela Dimensão Beneficiário
+-- MAGIC %md
+-- MAGIC ## 1. Dimensão Beneficiário (`dim_beneficiario`) - SCD Tipo 2
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### 1.1. DDL da Tabela Dimensão Beneficiário
 
 -- COMMAND ----------
 
@@ -51,8 +51,8 @@ COMMENT 'Dimensão conformada de beneficiários com histórico SCD Tipo 2';
 
 -- COMMAND ----------
 
-%md
-### 1.2. Temp View com Cálculo de Hash dos Atributos
+-- MAGIC %md
+-- MAGIC ### 1.2. Temp View com Cálculo de Hash dos Atributos
 
 -- COMMAND ----------
 
@@ -82,8 +82,8 @@ FROM catalog_dev.siscad_silver.beneficiario;
 
 -- COMMAND ----------
 
-%md
-### 1.3. Carga SCD Tipo 2 - Etapa 1: Expiração das Versões Anteriores Alteradas
+-- MAGIC %md
+-- MAGIC ### 1.3. Carga SCD Tipo 2 - Etapa 1: Expiração das Versões Anteriores Alteradas
 
 -- COMMAND ----------
 
@@ -99,8 +99,8 @@ WHEN MATCHED AND target.atributos_hash <> source.atributos_hash THEN
 
 -- COMMAND ----------
 
-%md
-### 1.4. Carga SCD Tipo 2 - Etapa 2: Inserção das Novas Versões e Novos Registros
+-- MAGIC %md
+-- MAGIC ### 1.4. Carga SCD Tipo 2 - Etapa 2: Inserção das Novas Versões e Novos Registros
 
 -- COMMAND ----------
 
@@ -144,8 +144,8 @@ WHERE target.id_beneficiario IS NULL;
 
 -- COMMAND ----------
 
-%md
-### 1.5. Otimização de Armazenamento - Dimensão Beneficiário
+-- MAGIC %md
+-- MAGIC ### 1.5. Otimização de Armazenamento - Dimensão Beneficiário
 
 -- COMMAND ----------
 
@@ -154,13 +154,13 @@ ZORDER BY (id_beneficiario, is_current);
 
 -- COMMAND ----------
 
-%md
-## 2. Dimensão Prestador (`dim_prestador`) - SCD Tipo 1 (Upsert)
+-- MAGIC %md
+-- MAGIC ## 2. Dimensão Prestador (`dim_prestador`) - SCD Tipo 1 (Upsert)
 
 -- COMMAND ----------
 
-%md
-### 2.1. DDL da Tabela Dimensão Prestador
+-- MAGIC %md
+-- MAGIC ### 2.1. DDL da Tabela Dimensão Prestador
 
 -- COMMAND ----------
 
@@ -181,8 +181,8 @@ COMMENT 'Dimensão conformada da rede credenciada';
 
 -- COMMAND ----------
 
-%md
-### 2.2. Upsert (MERGE) na Dimensão Prestador
+-- MAGIC %md
+-- MAGIC ### 2.2. Upsert (MERGE) na Dimensão Prestador
 
 -- COMMAND ----------
 
@@ -208,8 +208,8 @@ WHEN NOT MATCHED THEN INSERT (
 
 -- COMMAND ----------
 
-%md
-### 2.3. Otimização de Armazenamento - Dimensão Prestador
+-- MAGIC %md
+-- MAGIC ### 2.3. Otimização de Armazenamento - Dimensão Prestador
 
 -- COMMAND ----------
 
@@ -218,13 +218,13 @@ ZORDER BY (id_prestador, especialidade);
 
 -- COMMAND ----------
 
-%md
-## 3. Tabela Fato de Atendimentos (`fct_atendimento`)
+-- MAGIC %md
+-- MAGIC ## 3. Tabela Fato de Atendimentos (`fct_atendimento`)
 
 -- COMMAND ----------
 
-%md
-### 3.1. DDL da Tabela Fato de Atendimentos
+-- MAGIC %md
+-- MAGIC ### 3.1. DDL da Tabela Fato de Atendimentos
 
 -- COMMAND ----------
 
@@ -245,8 +245,8 @@ COMMENT 'Fato de eventos assistenciais na granularidade da guia';
 
 -- COMMAND ----------
 
-%md
-### 3.2. Carga do Fato com Lookup Temporal (Point-in-Time Join)
+-- MAGIC %md
+-- MAGIC ### 3.2. Carga do Fato com Lookup Temporal (Point-in-Time Join)
 
 -- COMMAND ----------
 
@@ -273,8 +273,8 @@ LEFT JOIN catalog_dev.gold.dim_prestador AS prestador
 
 -- COMMAND ----------
 
-%md
-### 3.3. Otimização de Armazenamento - Fato Atendimento
+-- MAGIC %md
+-- MAGIC ### 3.3. Otimização de Armazenamento - Fato Atendimento
 
 -- COMMAND ----------
 
@@ -283,13 +283,13 @@ ZORDER BY (data_atendimento, beneficiario_sk);
 
 -- COMMAND ----------
 
-%md
-## 4. Tabela Fato de Sinistros (`fct_sinistro`)
+-- MAGIC %md
+-- MAGIC ## 4. Tabela Fato de Sinistros (`fct_sinistro`)
 
 -- COMMAND ----------
 
-%md
-### 4.1. DDL da Tabela Fato de Sinistros
+-- MAGIC %md
+-- MAGIC ### 4.1. DDL da Tabela Fato de Sinistros
 
 -- COMMAND ----------
 
@@ -310,8 +310,8 @@ COMMENT 'Fato de despesas assistenciais na granularidade do sinistro';
 
 -- COMMAND ----------
 
-%md
-### 4.2. Carga do Fato com Lookup Temporal (Point-in-Time Join)
+-- MAGIC %md
+-- MAGIC ### 4.2. Carga do Fato com Lookup Temporal (Point-in-Time Join)
 
 -- COMMAND ----------
 
@@ -338,8 +338,8 @@ LEFT JOIN catalog_dev.gold.dim_prestador AS prestador
 
 -- COMMAND ----------
 
-%md
-### 4.3. Otimização de Armazenamento - Fato Sinistro
+-- MAGIC %md
+-- MAGIC ### 4.3. Otimização de Armazenamento - Fato Sinistro
 
 -- COMMAND ----------
 
@@ -348,10 +348,8 @@ ZORDER BY (data_sinistro, beneficiario_sk);
 
 -- COMMAND ----------
 
-%md
-## 5. Manutenção e Retenção de Dados (VACUUM)
-
-> **Nota:** Execute os comandos abaixo apenas após validar a política de retenção, consumidores dependentes e a necessidade de time-travel.
+-- MAGIC %md
+-- MAGIC ## 5. Manutenção e Retenção de Dados (VACUUM)
 
 -- COMMAND ----------
 
