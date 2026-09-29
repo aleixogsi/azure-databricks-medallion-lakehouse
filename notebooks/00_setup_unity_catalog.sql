@@ -1,14 +1,12 @@
 -- Databricks notebook source
--- COMMAND ----------
-
-%md
-# 00 - Setup do Unity Catalog (Lakehouse de Saúde)
-
-Este notebook é responsável pela inicialização da estrutura de governança no **Unity Catalog** para o ambiente de desenvolvimento (`catalog_dev`).
-
-> **Instruções de Execução:**
-> - Execute com um *Storage Admin* ou *Metastore Admin*.
-> - Certifique-se de ajustar os caminhos do Azure Data Lake Storage Gen2 (ADLS Gen2) de acordo com o ambiente.
+-- MAGIC %md
+-- MAGIC # 00 - Setup do Unity Catalog (Lakehouse de Saúde)
+-- MAGIC
+-- MAGIC Este notebook é responsável pela inicialização da estrutura de governança no **Unity Catalog** para o ambiente de desenvolvimento (`catalog_dev`).
+-- MAGIC
+-- MAGIC > **Instruções de Execução:**
+-- MAGIC > - Execute com um *Storage Admin* ou *Metastore Admin*.
+-- MAGIC > - Certifique-se de ajustar os caminhos do Azure Data Lake Storage Gen2 (ADLS Gen2) de acordo com o ambiente.
 
 -- COMMAND ----------
 
@@ -17,8 +15,8 @@ COMMENT 'Catálogo de desenvolvimento do lakehouse de Saúde';
 
 -- COMMAND ----------
 
-%md
-### Schemas do Sistema SISCAD (Cadastro de Beneficiários e Vidas)
+-- MAGIC %md
+-- MAGIC ### Schemas do Sistema SISCAD (Cadastro de Beneficiários e Vidas)
 
 -- COMMAND ----------
 
@@ -34,8 +32,8 @@ COMMENT 'Dados validados e conformados do SISCAD';
 
 -- COMMAND ----------
 
-%md
-### Schemas do Sistema SISGUIAS (Autorizador de Guias e Eventos Médicos)
+-- MAGIC %md
+-- MAGIC ### Schemas do Sistema SISGUIAS (Autorizador de Guias e Eventos Médicos)
 
 -- COMMAND ----------
 
@@ -51,8 +49,8 @@ COMMENT 'Dados validados e conformados do SISGUIAS';
 
 -- COMMAND ----------
 
-%md
-### Schemas do Sistema SISREDE (Gestão da Rede Credenciada)
+-- MAGIC %md
+-- MAGIC ### Schemas do Sistema SISREDE (Gestão da Rede Credenciada)
 
 -- COMMAND ----------
 
@@ -68,8 +66,8 @@ COMMENT 'Dados validados e conformados do SISREDE';
 
 -- COMMAND ----------
 
-%md
-### Schema da Camada Gold (Modelo Dimensional Unificado)
+-- MAGIC %md
+-- MAGIC ### Schema da Camada Gold (Modelo Dimensional Unificado)
 
 -- COMMAND ----------
 
@@ -79,19 +77,19 @@ COMMENT 'Camada analítica unificada de dados de Saúde';
 
 -- COMMAND ----------
 
-%md
-### Governança e Locais Externos (Referência e Exemplo)
-
-> **Nota de Infraestrutura:**
-> Os Locais Externos (*External Locations*) e Credenciais de Armazenamento (*Storage Credentials*) devem ser configurados uma única vez pela equipe de plataforma/Infra.
-
-```sql
--- Exemplo de criação de External Location:
--- CREATE EXTERNAL LOCATION IF NOT EXISTS ext_health_dev
--- URL 'abfss://dev@sthealthdev.dfs.core.windows.net/'
--- WITH (STORAGE CREDENTIAL health_dev_credential);
-
--- Exemplo de RBAC / Concessões de Acesso:
--- GRANT USE CATALOG ON CATALOG catalog_dev TO `group-health-data-engineers`;
--- GRANT USE SCHEMA ON SCHEMA catalog_dev.gold TO `group-health-analysts`;
--- GRANT SELECT ON SCHEMA catalog_dev.gold TO `group-health-analysts`;
+-- MAGIC %md
+-- MAGIC ### Governança e Locais Externos (Referência e Exemplo)
+-- MAGIC
+-- MAGIC > **Nota de Infraestrutura:**
+-- MAGIC > Os Locais Externos (*External Locations*) e Credenciais de Armazenamento (*Storage Credentials*) devem ser configurados uma única vez pela equipe de plataforma/Infra.
+-- MAGIC
+-- MAGIC ```sql
+-- MAGIC -- Exemplo de criação de External Location:
+-- MAGIC -- CREATE EXTERNAL LOCATION IF NOT EXISTS ext_health_dev
+-- MAGIC -- URL 'abfss://dev@sthealthdev.dfs.core.windows.net/'
+-- MAGIC -- WITH (STORAGE CREDENTIAL health_dev_credential);
+-- MAGIC
+-- MAGIC -- Exemplo de RBAC / Concessões de Acesso:
+-- MAGIC -- GRANT USE CATALOG ON CATALOG catalog_dev TO `group-health-data-engineers`;
+-- MAGIC -- GRANT USE SCHEMA ON SCHEMA catalog_dev.gold TO `group-health-analysts`;
+-- MAGIC -- GRANT SELECT ON SCHEMA catalog_dev.gold TO `group-health-analysts`;

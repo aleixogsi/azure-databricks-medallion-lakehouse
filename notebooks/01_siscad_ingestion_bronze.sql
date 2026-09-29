@@ -1,8 +1,6 @@
 -- Databricks notebook source
--- COMMAND ----------
-
 -- MAGIC %md
--- MAGIC # 01 - Ingestão Auditável da Camada Bronze
+-- MAGIC # 01 - Ingestão Auditável - Camada Bronze (Raw)
 -- MAGIC
 -- MAGIC Este notebook realiza a ingestão dos arquivos CSV originários dos sistemas transacionais de Saúde na **Camada Bronze**.
 -- MAGIC

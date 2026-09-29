@@ -1,8 +1,6 @@
 -- Databricks notebook source
--- COMMAND ----------
-
 -- MAGIC %md
--- MAGIC # 02 - Processamento, Limpeza e Sanitização (Camada Silver)
+-- MAGIC # 02 - Processamento, Limpeza e Sanitização - Camada Silver (Curated)
 -- MAGIC
 -- MAGIC Este notebook realiza as transformações de negócio, sanitização de tipos, tratamento de valores nulos/corrompidos e deduplicação determinística dos dados oriundos da Camada Bronze.
 -- MAGIC

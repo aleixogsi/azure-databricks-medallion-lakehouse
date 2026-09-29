@@ -1,8 +1,6 @@
 -- Databricks notebook source
--- COMMAND ----------
-
 -- MAGIC %md
--- MAGIC # 03 - Modelagem Dimensional Conformada (Camada Gold)
+-- MAGIC # 03 - Modelagem Dimensional Conformada - Camada Gold (Model)
 -- MAGIC
 -- MAGIC Este notebook implementa o modelo dimensional Star Schema da Camada Gold, unificando as entidades de negócio a partir da Camada Silver.
 -- MAGIC
